@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1581555139085.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "331CC3F5",
+    "lastKnownWriteTime" : 1581561659,
+    "last_content_update" : 1581561659248,
+    "path" : "~/Documents/r_workspace/easy_r/exercise/ex0212-2-class_munging.R",
+    "project_path" : "exercise/ex0212-2-class_munging.R",
+    "properties" : {
+        "cursorPosition" : "41,17",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

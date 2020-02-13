@@ -1,0 +1,19 @@
+
+rm(list=ls()) #변수 clear
+cat('\f') #console clear
+
+a <-1
+a 
+#---탐색적분석의 필수단계
+class(a) #변수 type 검사
+mode(a) #변수 값의 type 검사, class결과와는 다를 수있음
+str(a) #변수 structure = pandas info비슷
+dim(a)
+summary(a)
+#----------------------
+
+mpg
+class(mpg) 
+mode(mpg)
+str(mpg)
+summary(mpg)

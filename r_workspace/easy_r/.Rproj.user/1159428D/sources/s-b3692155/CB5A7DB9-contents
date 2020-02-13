@@ -1,0 +1,15 @@
+
+a <- 1
+b <- 1.5
+c <- '문자열'
+d <- TRUE
+bool1 <- TRUE
+bool2 <- FALSE
+bool3 <- T
+bool4 <- F
+
+
+T <- FALSE
+F <- TRUE
+
+cat('hello')

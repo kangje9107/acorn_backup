@@ -1,0 +1,39 @@
+#범주형변수 factor 연산자
+sex <- factor('m', c('m','f'))
+sex
+nlevels(sex)
+is.factor(sex)
+ordered(sex)
+is.ordered(sex)
+
+### vector 
+x <- c(1,2,3)
+names(x) <-c("1","2","3")
+y <- c(1,2,100)
+z <- seq(3,7)
+h <- seq(1,10,2)
+r <- 3:7
+#indexing : 1부터 시작
+x[1]
+x[-1] #1번 빼고 다추출
+x[2:3]
+x[c(1,3)]
+x["2"]
+#vector 길이 
+length(z)
+NROW(z)
+#벡터연산
+identical(x,y) #한개bool값만 도출 -> if 문에 사용가능
+x != y
+x == y
+100 %in% y #포함여부 연산
+union(x, y)
+intersect(x,y)
+setdiff(x,y)
+setequal(x,y)
+seq_along(r)
+vec_rep <-rep( 1:3 , times=5, each = 2 )
+#list == Dictionary와 같음 
+x<-matrix(1:12, ncol = 3)
+y<-matrix(1:12, ncol = 3, byrow = TRUE)
+x[2,]

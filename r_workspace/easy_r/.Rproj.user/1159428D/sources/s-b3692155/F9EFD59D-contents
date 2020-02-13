@@ -1,0 +1,22 @@
+rm(list=ls())
+cat('\f')
+
+exam <- read.csv("csv_exam.csv")
+
+df_mpg <-ggplot2::mpg
+
+mpg <- as.data.frame(df_mpg)
+mpg
+str(mpg)
+class(mpg)
+str(df_mpg)
+str(df_mpg)
+
+install.packages("dplyr")
+install.packages("readr")
+
+
+df_raw <- data.frame(var1=c(1,2,1),
+                     var2=c(2,3,2))
+
+save(df_raw, file = 'df_raw.original.rda')

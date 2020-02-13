@@ -1,0 +1,18 @@
+library(ggplot2)
+df_mpg <- mpg
+summary(df_mpg)
+
+df_mpg
+df_mpg$total_avg <- (df_mpg$cty + df_mpg$hwy)/2
+
+summary(df_mpg$total_avg)
+
+mean(df_mpg$total_avg)
+median(df_mpg$total_avg)
+
+qplot(df_mpg$total_avg)
+qplot(df_mpg$cty)
+qplot(df_mpg$hwy)
+
+
+
