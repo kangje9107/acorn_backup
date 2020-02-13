@@ -1,0 +1,377 @@
+﻿-- Git Bash Oracle 계정 들어가서 수행
+
+0. 	Locale 설정(ko_KR.UTF-8)
+	locale
+	locale -a
+
+	-- 1st. method
+	sudo apt-get install -y language-pack-ko
+	sudo locale-gen ko_KR.UTF-8
+	sudo dpkg-reconfigure locales -- KO UTF-8 (space키로 체크후 tab키로 저장나감)
+	sudo update-locale LANG=ko_KR.UTF-8 LC_MESSAGES=POSIX --이게 아래 2nd랑 같음. 
+
+	-- 2nd.method (1st 를 다 햇으면 안해도된다. 같은거임)
+	sudo vi /etc/default/locale
+	LANG=ko_KR.UTF-8
+	LC_MESSAGES=POSIX
+
+-- ctrl + d로 다시 Git Bash로 빠져나옴. 
+-- ssh 오라클계정 제접속, 
+-- $ locale 명령어로 언어패키지 확인하기
+
+
+1. 	
+	env | grep ORACLE_HOME -- oracle home 환경변수 확인 
+
+	$ORACLE_HOME/sqlplus/admin/glogin.sql or -- $(환경변수): 환경변수의 값이 들어가게됨.
+	$ORACLE_HOME/sqlplus/admin/login.sql 파일 편집(추가)
+
+	-- vi glogin.sql에 아래 내용 전부 추가 ----
+	set sqlprompt "_USER'@'_CONNECT_IDENTIFIER _PRIVILEGE> "
+	set pagesize 100
+	set linesize 150
+	set timing on
+	set echo on
+
+	col NAME        format a20
+	col INSTANCE    format a20
+	col CON_NAME    format a10
+	col PDB         format a20
+	col USERNAME    format a20
+
+	show user
+	show con_id
+	show con_name
+	show pdbs
+	------------------------------------------
+
+
+2. 	
+	-- shell에서..
+	-- (1) Oracle instance 구동 : sys계정 접속 후 startup명령어
+	$ startup
+
+	-- 이제 재접속해보면 환경변수 설정한게 뜸
+	-- <현재 접속자>@<oracle SID(instance 식별자)> AS 현재접속자권한 표시>
+	-- CON_ID : 1이면 CDB로 접속했다는 거임. 
+	-- pdbs 의 seoul 이 read/write가 아닌 mount면 아직 잘 안켜졌다는거
+
+	--** Oracle instance 구동 종료 : shutdown immediate 
+	--** shutdown abort : 현재 진행중인 프로그램이 있어도 인스턴스를 확 내려버림 : DB깨짐
+	-- 		이렇게 깨진 DB는 startup 할때 복구됨. 
+	-- 		abort 사용예 : 쇼핑몰 노트북 $10로 올라왔던 적이 있어서 일단 디비를 내려야됨. 
+
+	-- (2) $lsnrctl start : 리스너 구동
+	-- (3) $ps -ef | gerp tns 로 리스너 구동확인 (tns : listener이름)
+	-- (4) $ps -ef | grep ora_ 로 인스턴스 구동 확인 (SID : korea)
+	-- 		env | grep ORA로 확인 
+	sqlplus / as sysdba
+
+
+3. 	내가 어떻게 설치한지 기억안나면, v$database, v$instance, v$thread 
+	-- Oracle이 제공하는 데이터사전
+	
+	-- sqlplus / as sysdba 로 접속
+
+	v$database, v$instance, v$thread -- Oracle이 제공하는 데이터사전
+	-- v: view, $:(public 접근권한) 의미
+
+	----------------------------------------------------------------
+	-- 1. v$thread gives the Oracle DB name ('name' column) : 설치 DB이름 제공
+	----------------------------------------------------------------
+	-- Useful columns: name, open_mode, cdb, con_id
+	desc v$database;
+
+	-- name: korea, open_mode: READ WRITE, CDB: YES, con_id: 0
+	select name, open_mode, cdb, con_id from v$database; -- dbNAME과 openmode정보 얻기
+
+
+	----------------------------------------------------------------
+	-- 2. v$instance gives the Oracle SID ('instance_name' column)
+	----------------------------------------------------------------
+	-- Useful columns: instance_number, instance_name, status, con_id, instance_mode
+	desc v$instance;
+
+	-- instance_number: 1, instance_name: korea, status: OPEN, con_id: 0, instance_mode: REGULAR
+
+	ed 
+	-- 편집기로 들어가서, 'dd' 빠르게 눌러 첫 행 삭제
+	-- 편집모드로 들어가서 아래 문장 맨 뒤 ; 빼고 입력
+	select instance_number, instance_name, status, con_id, instance_mode from v$instance;	
+	
+	list -- 버퍼에있는 문장 확인
+	
+	/ 또는 run --버퍼안에 있는거 구동
+	
+	-- 	SID: korea 인걸 알 수 있음.
+
+	----------------------------------------------------------------
+	-- 3. v$thread gives the Oracle SID ('instance' column)
+	----------------------------------------------------------------
+	-- Useful columns: instance, status, enabled, con_id
+	desc v$thread;
+
+	-- instance: korea, status: OPEN, enabled: PUBLIC, con_id: 0
+	ed -- 에서 첫행 지우고 아래 문장 ;떼고 입력
+	select instance, status, enabled, con_id from v$thread;		-- SID: korea
+
+	-- instance의 con id = 0 . 뜻: instance는 붙고 db 접속 안됬다는 의미
+	-- con_id =1 이면 CDB로 붙었다는 의미
+
+
+4.	show user;			-- To show current connected username
+	show con_name;		-- To show current connection name (If CDB$ROOT, it means Container database. (CDB))
+   	show con_id;		-- To show current connection id (If 1, it means the connection to the CDB)
+   	show pdbs;			-- To show all pluggable databases
+
+
+-- cloud 방식은 한개의 cdb , 여러 pdb로 구성이므로 내가 어디에 있는지 알아야됨. 
+5. 	v$services, v$active_services, v$pdbs
+	
+	----------------------------------------------------------------
+	-- 1. v$services gives the Oracle DB's service name ('name' column)
+	----------------------------------------------------------------
+	-- 나중에 pdb/cdb이름가지고 접속해야됨.
+	-- Useful columns: service_id, name, global, pdb, con_id
+	desc v$services;
+
+	-- service_id: 6, name: korea.localdomain, global: NO, pdb: CDB$ROOT, con_id: 1
+	-- Global DB name('name' column): korea.localdomain <-> Corresponding PDB: CDB$ROOT
+
+	-- service_id: 7, name: seoul.localdomain, global: NO, pdb: SEOUL, con_id: 3
+	-- Pluggable DB name('name' column): seoul.localdomain <-> Corresponding PDB: SEOUL
+	select service_id, name, global, pdb, con_id from v$services;
+	-- PDB 실제 DB이름 : seoul.localdomain 확인 (그냥 seoul이 아님)
+	-- CDB 실제 DB이름 : ubuntu.localdomain 확인 
+	-- 나머지 세가지는 instance가 관리하기 위해 붙인 이름일뿐 사용할 일은 없음. 
+	-- con_id = 3 : PDB로 붙었음을 의미.
+
+
+	----------------------------------------------------------------
+	-- 2. v$active_services gives the Oracle DB's service name ('name' column) 
+	----------------------------------------------------------------
+	-- Useful columns: service_id, name, con_name, con_id
+	desc v$active_services;
+
+	-- service_id: 6, name: korea.localdomain, con_name CDB$ROOT, con_id: 1
+	-- Global DB name('name' column): korea.localdomain <-> Corresponding PDB: CDB$ROOT
+
+	-- service_id: 7, name: seoul.localdomain, con_name: SEOUL, con_id: 3
+	-- Global DB name('name' column): seoul.localdomain <-> Corresponding PDB: SEOUL
+	select service_id, name, con_name, con_id from v$active_services;
+
+	----------------------------------------------------------------
+	-- 3. v$pdbs gives the Oracle DB's service name ('name' column)
+	----------------------------------------------------------------
+	-- Useful columns: con_id, name, open_mode
+	desc v$pdbs;
+
+	-- service_id: 3, name: SEOUL, open_mode: READ WRITE
+	-- Pluggable DB name('name' column): SEOUL, Mode: READ WRITE (if MOUNTED, Do open manually)
+   	select con_id, name, open_mode from v$pdbs;
+
+
+
+   	-- if openmode가 read/write 아니고 MOUNTED면, Do open manually
+   	alter pluggable database SEOUL open;
+
+   	or
+
+   	alter pluggable database all open;
+
+
+   	alter pluggable database SEOUL save state;
+   	-- 현재 상태로 저장. 껏다키더라도 저장됨 
+   	or
+   	
+   	alter pluggable database all save state;
+
+
+
+7. 	To switch to CDB or PDB. 
+	
+	alter session set container = CDB$ROOT;		-- To switch to CDB(KOREA)
+
+	or
+	
+	alter session set container = SEOUL;		-- To switch to PDB(SEOUL)
+
+
+	show con_id;
+	show con_name;
+	show pdbs;
+
+
+	----------------------------------------------------------------
+	-- dba_users gives all the Oracle users created ('username' column)
+	----------------------------------------------------------------
+	-- According to the current connected database, 
+	-- This statement shows different users from the database.
+	----------------------------------------------------------------
+
+	-- Useful columns: username, account_status 
+	-- username을 보면 CDB에는 hr, scott계정같은 샘플스키마가 없음.
+	select username, account_status from dba_users;	-- When CDB connected
+	-- pdb로 스위치해서 보면 hr 에서 보임. 
+	select username, account_status from dba_users;	-- When PDB connected
+
+
+	-- hr계정을 unlock해서 사용해야하므로,
+	----------------------------------------------------------------
+	-- If needed, change the password and status of the account you want
+	-- using the below DDL statement
+	----------------------------------------------------------------
+	alter user hr identified by hr account unlock; -- 암호 (hr) 입력
+
+	or
+	
+	alter user hr account unlock identified by hr;
+
+
+8. 	Oracle 원격 서버 접속하는 2가지 방식
+	To prepare the Oracle connection settings for connecting to the CDB/PDB you want.
+	
+	-- Host OS에 설치된 oracle client에 설정!!
+	window DOS에서 oracle hoe directory, newtork/admin 안에 설정파일 3개 들어있음. 
+	sqlnet.
+
+	-- DOS 에서, oraclehome/network/admin 들어가서 
+	code -r sqlnet.org/tnsnames.org 열어서 내용 수정
+	-- sqlnet은 아래처럼 됐느지 확인
+	SQLNET.AUTHENTICATION_SERVICES = (NTS, EZCONNECT)
+	-- tnsnames.org는아래 # pdb, cdb 추가되있는지 확인---
+
+
+	(1) Go to the ORACLE_HOME/network/admin
+
+	(2) dir *.ora
+		listener.ora
+		sqlnet.ora
+		tnsnames.ora
+	
+	(3) Open tnsnames.ora and append the below settings.
+
+		-- port번호 확인하는법, oracle shell에서 
+		ps -ef | grep tns; --두번째 listener 두번째 컬럼의 4699
+		sudo lsof -p <4699 : 리스너프로세스 번호> | grep LISTEN 
+		-- 아래 5500 이라는 건 oracle web 띄우는거임. oracle enterprise manager(?)
+			확인하려면 Dos 에서 아래 코드 입력
+			telnet 192.168.0.49 5500 
+		-- telnet 떠서 아무것도 안나오면 접속 성공 한 것.(나갈땐 ctr + ])
+
+		
+		# -- To connect to the PDB(SEOUL), SERVICE(seoul.localdomain)
+		PDB =
+		  (DESCRIPTION =
+		    (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.49)(PORT = 1521)) 
+		    ------- ** host/port중요, ubuntu 구동해서 ipfonfig로 확인
+		    (CONNECT_DATA =
+		      (SERVER = DEDICATED)
+		      (SERVICE_NAME = seoul.localdomain) --**pdb 실제 이름 지정 (그냥 seoul 하면안됨)
+		    )
+		  )
+		
+		# -- To connect to the CDB(CDB$ROOT), SERVICE(korea.localdomain)
+		CDB =
+		  (DESCRIPTION =
+		    (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.49)(PORT = 1521))
+		    (CONNECT_DATA =
+		      (SERVER = DEDICATED)
+		      (SERVICE_NAME = korea.localdomain) -- korea 혹은 ubuntu.~ 
+		    )
+		  )
+	   
+   	(4) Restart the listener or Reload listener settings
+   		-- 이단계는 스킵
+	
+		-- To reload the Oracle listener settings.
+		lsnrctl reload
+
+		or
+
+		-- To restart the Oracle listener.
+		lsnrctl stop
+		lsnrctl start
+
+		-- To check the Oracle listener status
+		lsnrctl status
+
+
+9.	To connect CDB or PDB
+
+	----------------------------------------------------------------------------------
+	-- 1st. method using TNS alias
+	----------------------------------------------------------------------------------
+
+	-- 1. To connect to the PDB(SEOUL) using service account
+	--	  	(*Caution) You cannot connect to the CDB using service account.
+	--		If you want to connect to the CDB, you shoud use sysdba account(SYS)
+
+	sqlplus hr/hr@PDB 	-- PDB: the name appended to tnsnames.ora file.
+	sqlplus hr/hr@pdb 	-- the same as the above.(case-insensitive)
+
+	sqlplus hr/hr@CDB 	-- XX: logon denied.
+	sqlplus hr/hr@cdb 	-- XX: logon denied.
+
+
+	-- 2. To connect to the CDB(KOREA) using sysdba account
+	--		(*Caution) The sysdba account can connect to the both CDB and PDB.
+	
+	sqlplus sys/oracle@CDB as sysdba -- CDB: the name appended to tnsnames.ora file.
+	sqlplus sys/oracle@cdb as sysdba -- the same as the above.(case-insensitive)
+	
+	sqlplus sys/oracle@PDB as sysdba -- PDB: the name appended to tnsnames.ora file.
+	sqlplus sys/oracle@pdb as sysdba -- the same as the above.(case-insensitive)
+
+	----------------------------------------------------------------------------------
+	-- 2st. method using EZCONNECT
+	----------------------------------------------------------------------------------
+
+	-- 일반계정은 PDB 만 접속가능
+	sqlplus hr/hr@//192.168.0.8:1521/seoul.localdomain
+	sqlplus hr/hr@192.168.0.8:1521/seoul.localdomain
+
+	-- SYS 계정은 CDB, PDB 모두 접속가능
+	-- 1. PDB 접속
+	sqlplus sys/oracle@//192.168.0.8:1521/seoul.localdomain as sysdba
+	sqlplus sys/oracle@192.168.0.8:1521/seoul.localdomain as sysdba
+
+	-- 2. CDB 접속
+	sqlplus sys/oracle@//192.168.0.8:1521/ubuntu.localdomain as sysdba
+	sqlplus sys/oracle@192.168.0.8:1521/ubuntu.localdomain as sysdba
+
+	-- cdb나pdb나같은 DB라 scott을 cdb에설치하면 한다.그러나 
+	-- 다른 일반계쩡이 없는 한, 일반계쩌은pdb만 접소 ㄱ가능한 것.
+
+
+10. MS Visual Source Code DB Connection 설정에서 주의사항
+	-- + 눌러서 new connection 
+	(1) TNS Alias 선택
+	(2) $ORACLE_HOME/network/admin 폴더 선택
+	(3) tnsnames.ora 파일에 등록된 이름(PDB, CDB) 선택
+	(4) SYS 계정으로 접속시, 역할(role)로 SYSDBA 선택
+		일반계정으로 접속시, 역할(role)로 None 선택
+	(5) SYS 계정과 암호 입력
+	(6) 접속시도
+
+	*주의사항*) SYSDBA 역할과 SYS계정으로 접속시, timeout 발생하면,
+			  Oracle SQL*PLUS에서, 우선 접속하여 성공 후, 다시 VSC에서 수행하면 됨
+			  (Oracle Explorer extension bug 로 보임)
+
+
+11. SQL*DEVELOPER 설정에서 주의사항
+    가. TNS alias 선택시, tnsnames.ora 파일에 등록한 이름 선택
+    나. 기본 선택시, EZCONNECT 방식으로 설정
+    	이때, SID 대신에, 접속할 CDB or PDB 이름 선택
+
+
+12. scott 계정 파일은 12c에 없으므로,
+scott_for_oracle12c.sql 파일 아래@ ~ 부분 추가하고 주석 (rem~)삭제하고 저장.
+CONNECT SCOTT/TIGER@pdb.ubuntu
+-- dos에서 
+@디렉토리/scott_for_oracle12c.sql 실행후 
+scott 계정으로 VS나 developer에서 pdb붙여보면 들어감. 
+
+
+#--oracle sample schema git에서 다운가능
+
